@@ -21,9 +21,9 @@ def add_patient_to_db(name, id, blood_type):
                           id_no = id,
                           blood_type = blood_type)
 
-    db.append(new_patient)
+    new_patient.save()
     #print(db)
-    logging.info(new_patient)
+    logging.info("Added new patient_id {} to database.".format(id_no))
     return True
 
 
