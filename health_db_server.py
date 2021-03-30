@@ -1,5 +1,7 @@
 from flask import Flask, request, jsonify
 import logging
+from pymodem import connect
+from patient_class import patient
 
 logging.basicConfig(filename="server.log", level=logging.INFO)
 
@@ -9,15 +11,15 @@ db = list()
 
 
 def init_server():
-    add_patient_to_db("Ann Ables", 101, "A+")
-    add_patient_to_db("Bob Boyles", 102, "B-")
+    print("Connecting to MongoDB...")
+    connect("mongodb+srv://ebarre2021:<password>@bme547.rectr.mongodb.net/myFirstDatabase?retryWrites=true&w=majority")
+    print("MongoDB connected.")
 
 
 def add_patient_to_db(name, id, blood_type):
-    new_patient = {"name": name,
-                   "id": id,
-                   "blood_type": blood_type,
-                   "test": list()}
+    new_patient = Patient(name = name,
+                          id_no = id,
+                          blood_type = blood_type)
 
     db.append(new_patient)
     #print(db)
