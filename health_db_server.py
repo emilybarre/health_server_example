@@ -1,30 +1,29 @@
 from flask import Flask, request, jsonify
 import logging
-from pymodem import connect
-from patient_class import patient
-
+from pymodm import connect
+from pymodm import errors as pymodm_errors
+from patient_class import Patient
 logging.basicConfig(filename="server.log", level=logging.INFO)
 
 app = Flask(__name__)
 
-db = list()
-
 
 def init_server():
     print("Connecting to MongoDB...")
-    connect("mongodb+srv://ebarre2021:<password>@bme547.rectr.mongodb.net/myFirstDatabase?retryWrites=true&w=majority")
+    connect("mongodb+srv://ebarre2021:Ward2021@bme547.rectr."
+            "mongodb.net/health_db_2021?retryWrites=true&w=majority")
     print("MongoDB connected.")
 
 
 def add_patient_to_db(name, id, blood_type):
-    new_patient = Patient(name = name,
-                          id_no = id,
-                          blood_type = blood_type)
+    new_patient = Patient(name=name,
+                          id_no=id,
+                          blood_type=blood_type)
 
     saved_patient = new_patient.save()
-    #print(db)
-    logging.info("Added new patient_id {} to database.".format(id_no))
-    return True
+
+    logging.info("Added new patient_id {} to database.".format(saved_patient.id_no))
+    return saved_patient
 
 
 @app.route("/new_patient", methods=["POST"])
@@ -47,13 +46,10 @@ def validate_blood_type(in_data):
 
 
 def validate_new_patient_info(in_dict):
-    expected_keys = ("name", "id", "blood_type")
-    expected_types = (str, int, str)
-    for key, ty in zip(expected_keys, expected_types):
-        if key not in in_dict.keys():
-            return "{} key not found".format(key), 400
-        if type(in_dict[key]) != ty:
-            return "{} key has the wrong value type".format(key), 400
+    # try:
+    #     db_item = Patient.objects.raw({"_id": patient_id}).first()
+    # except pymodm_errors.DoesNotExist:
+    #     return False
     return True, 200
 
 
@@ -72,9 +68,9 @@ def process_new_patient(in_data):
     return "Patient successfully added", 200
 
 
-@app.route("/get_image", methods=["GET"])
-def get_image_route():
-    return jsonify(db), 200
+# @app.route("/get_image", methods=["GET"])
+# def get_image_route():
+#     return jsonify(db), 200
 
 
 @app.route("/add_test", methods=["POST"])
@@ -89,7 +85,7 @@ def process_add_test(in_data):
     if validate_input is not True:
         return validate_input, server_status
     valid_patient_id = validate_patient_id(in_data["id"])
-    if valid_patient_id is not True:
+    if valid_patient_id is False:
         return "Patient id {} does not exist".format(in_data["id"]), 400
     add_patient_test_data(in_data)
     return "Test data successfully added", 200
@@ -107,17 +103,22 @@ def validate_add_test_info(in_dict):
 
 
 def validate_patient_id(patient_id):
-    for patient in db:
-        if patient["id"] == patient_id:
-            return True
-    return False
+    try:
+        patient_from_db = Patient.objects.raw({"_id": patient_id}).first()
+    except pymodm_errors.DoesNotExist:
+        return False
+    return True
 
 
 def add_patient_test_data(in_data):
-    for patient in db:
-        if patient["id"] == in_data["id"]:
-            break
-    patient["test"].append((in_data["test_name"], in_data["test_result"]))
+    try:
+        db_item = Patient.objects.raw({"_id": in_data["id"]}).first()
+    except pymodm_errors.DoesNotExist:
+        return False
+    new_test = (in_data["test_name"], in_data["test_result"])
+    db_item.test.append(new_test)
+    updated_patient = db_item.save()
+    return updated_patient
 
 
 @app.route("/get_results/<patient_id>", methods=["GET"])
@@ -142,11 +143,10 @@ def validate_variable_url_patient_id(patient_id):
 
 
 def get_patient_from_db(patient_id):
-    for patient in db:
-        if patient["id"] == patient_id:
-            return patient
+    # for patient in db:
+    #     if patient["id"] == patient_id:
+    #         return patient
     return False
-
 
 
 if __name__ == '__main__':
